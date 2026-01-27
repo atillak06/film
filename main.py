@@ -1,375 +1,308 @@
 import requests
+import re
+import datetime
+import urllib3
 from bs4 import BeautifulSoup
-import json
-import os
-import time
-import html
-from urllib.parse import urlparse
 
 # --- AYARLAR ---
-BASE_URL = os.environ.get('SITE_URL', 'https://dizipal1225.com/filmler')
-DATA_FILE = 'movies.json'
-HTML_FILE = 'index.html'
+OUTPUT_FILE = "Canli_Spor_Hepsi.m3u"
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+WORKING_BS1_URL = "https://andro.adece12.sbs/checklist/receptestt.m3u8"
 
-# Dizipal Kaynak Kodundan Alınan Sabit Kategoriler
-FIXED_GENRES = [
-    "Aile", "Aksiyon", "Animasyon", "Anime", "Belgesel", "Bilimkurgu", 
-    "Biyografi", "Dram", "Editörün Seçtikleri", "Erotik", "Fantastik", 
-    "Gerilim", "Gizem", "Komedi", "Korku", "Macera", "Mubi", "Müzik", 
-    "Romantik", "Savaş", "Spor", "Suç", "Tarih", "Western", "Yerli",
-    "Netflix", "Exxen", "BluTV", "Disney+", "Amazon", "TOD", "Gain"
-]
+# SSL Uyarılarını gizle
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def get_base_domain(url):
-    parsed = urlparse(url)
-    return f"{parsed.scheme}://{parsed.netloc}"
+# --- 1. ATOM SPOR (VIP KESİN LİNK) ---
+def fetch_atom_spor():
+    print("[*] AtomSpor (VIP) kanalları ekleniyor...")
+    results = []
+    base_url = "https://hlssssss.volepartigo.workers.dev/https://corestream.ronaldovurdu.help//hls/"
+    atom_logo = "https://hizliresim.com/gm50rk9b"
+    
+    channels = [
+        ("Bein Sports 1", "bein-sports-1"),
+        ("Bein Sports 2", "bein-sports-2"),
+        ("Bein Sports 3", "bein-sports-3"),
+        ("Bein Sports 4", "bein-sports-4"),
+        ("Bein Sports 5", "bein-sports-5"),
+        ("S Sport 1", "s-sport"),
+        ("S Sport 2", "s-sport-2"),
+        ("S Sport Plus", "ssport-plus"),
+        ("Tivibu Spor 1", "tivibu-spor-1"),
+        ("Tivibu Spor 2", "tivibu-spor-2"),
+        ("Tivibu Spor 3", "tivibu-spor-3"),
+        ("Smart Spor", "smart-spor"),
+        ("TV 8.5", "tv-8-5"),
+        ("Bein Sports Haber", "bein-sports-haber")
+    ]
+    
+    for name, cid in channels:
+        full_url = f"{base_url}{cid}.m3u8"
+        results.append({
+            "name": f"ATOM - {name}",
+            "url": full_url,
+            "group": "ATOM SPOR (VIP)",
+            "logo": atom_logo,
+            "ref": "https://atomsportv485.top/"
+        })
+    return results
 
-def get_soup(url):
-    """Senin verdigin ornekteki basit baglanti fonksiyonu."""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
+# --- 2. VAVOO SİSTEMİ (STABİL KAYNAK) ---
+def fetch_vavoo():
+    print("[*] Vavoo kanalları ekleniyor...")
+    results = []
+    proxy_base = "https://yildiziptv-turktv.hf.space/proxy/hls/manifest.m3u8?d=https://vavoo.to/vavoo-iptv/play/"
+    vavoo_channels = [
+        {"n": "beIN SPORTS Haber", "id": "398999553310ffc0558467", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-haber-hd.png"},
+        {"n": "beIN SPORTS 1 HD", "id": "257621689779b8fed9899e", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-hd-1-1.png"},
+        {"n": "beIN SPORTS 2 FHD", "id": "3694662475b76c08f52108", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-hd-2-1.png"},
+        {"n": "beIN SPORTS 3 FHD", "id": "34101675603c7aea8fa6b1", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-hd-3-1.png"},
+        {"n": "beIN SPORTS 4 FHD", "id": "293826835381972adead05", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-hd-4.png"},
+        {"n": "beIN SPORTS 5 FHD", "id": "400031560107e5581e3624", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-hd-5.png"},
+        {"n": "beIN SPORTS MAX 1", "id": "2832430535849b88f81e2d", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-max-1-hd.png"},
+        {"n": "beIN SPORTS MAX 2", "id": "34079362426e8ca1ffedf7", "img": "https://www.digiturkburada.com.tr/kanal3/bein-sports-max-2-hd.png"}
+    ]
+    for ch in vavoo_channels:
+        results.append({"name": f"VAVOO - {ch['n']}", "url": f"{proxy_base}{ch['id']}", "group": "VAVOO SPOR (STABIL)", "logo": ch['img'], "ref": ""})
+    return results
+
+# --- 3. NETSPOR SİSTEMİ ---
+def fetch_netspor():
+    print("[*] Netspor taranıyor...")
+    results = []
+    source_url = "https://netspor-amp.xyz/"
+    stream_base = "https://andro.adece12.sbs/checklist/" 
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        return BeautifulSoup(response.content, 'html.parser')
+        res = requests.get(source_url, headers=HEADERS, timeout=10)
+        res.encoding = 'utf-8'
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for div in soup.find_all('div', class_='mac', option=True):
+            sid = div.get('option')
+            t_div = div.find('div', class_='match-takimlar')
+            if not sid or not t_div: continue
+            title = t_div.get_text(strip=True)
+            group = "CANLI TV KANALLARI" if div.find_parent('div', id='kontrolPanelKanallar') else "Günün Maçları"
+            if group == "Günün Maçları":
+                alt = div.find('div', class_='match-alt')
+                if alt: title = f"{title} ({alt.get_text(' | ', strip=True)})"
+            final_url = WORKING_BS1_URL if sid == "androstreamlivebs1" else f"{stream_base}{sid}.m3u8"
+            results.append({"name": f"NET - {title}", "url": final_url, "group": f"NETSPOR {group.upper()}", "ref": source_url, "logo": ""})
+    except: pass
+    return results
+
+# --- 4. TRGOALS SİSTEMİ (WORKER + YENİ DOMAIN) ---
+def fetch_trgoals():
+    print("[*] Trgoals kanalları ekleniyor (CF Worker)...")
+    results = []
+    worker_url = "https://muddy-morning-480c.burhantasci72.workers.dev/?url="
+    target_domain = "https://pq4.d72577a9dd0ec4.sbs/"
+    
+    trg_channels = {
+        "yayinzirve": "TRGOALS CANLI YAYIN (ZIRVE)",
+        "yayin1": "BEIN SPORTS 1 HD",
+        "yayinb2": "BEIN SPORTS 2 HD",
+        "yayinb3": "BEIN SPORTS 3 HD",
+        "yayinb4": "BEIN SPORTS 4 HD",
+        "yayinb5": "BEIN SPORTS 5 HD",
+        "yayinbm1": "BEIN SPORTS MAX 1",
+        "yayinbm2": "BEIN SPORTS MAX 2",
+        "yayinss": "S SPORT 1",
+        "yayinss2": "S SPORT 2",
+        "yayint1": "TIVIBU SPOR 1",
+        "yayint2": "TIVIBU SPOR 2",
+        "yayint3": "TIVIBU SPOR 3",
+        "yayint4": "TIVIBU SPOR 4",
+        "yayinsmarts": "SMART SPOR 1",
+        "yayinsms2": "SMART SPOR 2",
+        "yayintrtspor": "TRT SPOR",
+        "yayinas": "A SPOR",
+        "yayintv85": "TV8.5 HD",
+        "yayinex1": "EXXEN 1",
+        "yayinex2": "EXXEN 2",
+        "yayinex3": "EXXEN 3",
+        "yayinex4": "EXXEN 4"
+    }
+    
+    logo_url = "https://i.ibb.co/gFyFDdDN/trgoals.jpg"
+    referer_url = "https://trgoals1490.xyz/"
+
+    for cid, name in trg_channels.items():
+        target_stream = f"{target_domain}{cid}.m3u8"
+        full_url = f"{worker_url}{target_stream}"
+        results.append({"name": f"TRG - {name}", "url": full_url, "group": "TRGOALS TV (WORKER)", "ref": referer_url, "logo": logo_url})
+    return results
+
+# --- 5. ALAM TV (YENİ EKLENDİ) ---
+def fetch_alam_tv():
+    print("[*] AlamTV kanalları ekleniyor...")
+    results = []
+    
+    # Base URL (Worker)
+    base_worker = "https://misty-sunset-1f65.burhantasci72.workers.dev/"
+    
+    # ID -> İsim Haritası
+    channels = [
+        ("701", "ALAM - beIN SPORTS 1"),
+        ("702", "ALAM - beIN SPORTS 2"),
+        ("703", "ALAM - beIN SPORTS 3"),
+        ("704", "ALAM - beIN SPORTS 4"),
+        ("705", "ALAM - S SPORT 1"),
+        ("730", "ALAM - S SPORT 2"),
+        ("706", "ALAM - TIVIBU SPOR 1"),
+        ("711", "ALAM - TIVIBU SPOR 2"),
+        ("712", "ALAM - TIVIBU SPOR 3"),
+        ("713", "ALAM - TIVIBU SPOR 4"),
+    ]
+    
+    for cid, cname in channels:
+        # Worker URL oluşturma
+        full_url = f"{base_worker}{cid}"
+        
+        results.append({
+            "name": cname,
+            "url": full_url,
+            "group": "ALAM TV (WORKER)",
+            "logo": "", # İstenirse logo eklenebilir
+            "ref": ""
+        })
+        
+    return results
+
+# --- 6. SELÇUKSPOR SİSTEMİ ---
+def fetch_selcuk_sporcafe():
+    print("[*] Selçukspor taranıyor...")
+    results = []
+    selcuk_channels = [
+        {"id": "selcukbeinsports1", "n": "BEIN SPORTS 1"}, {"id": "selcukbeinsports2", "n": "BEIN SPORTS 2"},
+        {"id": "selcukbeinsports3", "n": "BEIN SPORTS 3"}, {"id": "selcukbeinsports4", "n": "BEIN SPORTS 4"},
+        {"id": "selcukbeinsports5", "n": "BEIN SPORTS 5"}, {"id": "selcukbeinsportsmax1", "n": "BEIN MAX 1"},
+        {"id": "selcukbeinsportsmax2", "n": "BEIN MAX 2"}, {"id": "selcukssport", "n": "S SPORT 1"},
+        {"id": "selcukssport2", "n": "S SPORT 2"}, {"id": "selcuktivibuspor1", "n": "TIVIBU 1"},
+        {"id": "selcuktivibuspor2", "n": "TIVIBU 2"}, {"id": "selcuksmartspor", "n": "SMART SPOR 1"},
+        {"id": "selcukaspor", "n": "A SPOR"}, {"id": "selcukeurosport1", "n": "EUROSPORT 1"}
+    ]
+    referer, html = None, None
+    for i in range(6, 150):
+        url = f"https://www.sporcafe{i}.xyz/"
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=1)
+            if "uxsyplayer" in res.text: referer, html = url, res.text; break
+        except: continue
+    if html:
+        m_dom = re.search(r'https?://(main\.uxsyplayer[0-9a-zA-Z\-]+\.click)', html)
+        if m_dom:
+            s_dom = f"https://{m_dom.group(1)}"
+            for ch in selcuk_channels:
+                try:
+                    r = requests.get(f"{s_dom}/index.php?id={ch['id']}", headers={**HEADERS, "Referer": referer}, timeout=5)
+                    base = re.search(r'this\.adsBaseUrl\s*=\s*[\'"]([^\'"]+)', r.text)
+                    if base: results.append({"name": f"SL - {ch['n']}", "url": f"{base.group(1)}{ch['id']}/playlist.m3u8", "group": "SELÇUKSPOR HD", "ref": referer, "logo": ""})
+                except: continue
+    return results
+
+# --- 7. ANDRO PANEL SİSTEMİ ---
+def fetch_andro_nodes():
+    print("[*] Andro-Panel (Taraftarium) taranıyor...")
+    results = []
+    PROXY = "https://proxy.freecdn.workers.dev/?url="
+    START = "https://taraftariumizle.org"
+    
+    channels = [
+        ("androstreamlivebiraz1", 'TR:beIN Sport 1 HD'), ("androstreamlivebs1", 'TR:beIN Sport 1 HD'),
+        ("androstreamlivebs2", 'TR:beIN Sport 2 HD'), ("androstreamlivebs3", 'TR:beIN Sport 3 HD'),
+        ("androstreamlivebs4", 'TR:beIN Sport 4 HD'), ("androstreamlivebs5", 'TR:beIN Sport 5 HD'),
+        ("androstreamlivebsm1", 'TR:beIN Sport Max 1 HD'), ("androstreamlivebsm2", 'TR:beIN Sport Max 2 HD'),
+        ("androstreamlivess1", 'TR:S Sport 1 HD'), ("androstreamlivess2", 'TR:S Sport 2 HD'),
+        ("androstreamlivets", 'TR:Tivibu Sport HD'), ("androstreamlivets1", 'TR:Tivibu Sport 1 HD'),
+        ("androstreamlivets2", 'TR:Tivibu Sport 2 HD'), ("androstreamlivets3", 'TR:Tivibu Sport 3 HD'),
+        ("androstreamlivets4", 'TR:Tivibu Sport 4 HD'), ("androstreamlivesm1", 'TR:Smart Sport 1 HD'),
+        ("androstreamlivesm2", 'TR:Smart Sport 2 HD'), ("androstreamlivees1", 'TR:Euro Sport 1 HD'),
+        ("androstreamlivees2", 'TR:Euro Sport 2 HD'), ("androstreamlivetb", 'TR:Tabii HD'),
+        ("androstreamlivetb1", 'TR:Tabii 1 HD'), ("androstreamlivetb2", 'TR:Tabii 2 HD'),
+        ("androstreamliveexn", 'TR:Exxen HD'), ("androstreamliveexn1", 'TR:Exxen 1 HD'),
+    ]
+
+    def get_src(u, ref=None):
+        try:
+            h = HEADERS.copy()
+            if ref: h['Referer'] = ref
+            r = requests.get(PROXY + u, headers=h, verify=False, timeout=20)
+            return r.text if r.status_code == 200 else None
+        except: return None
+
+    try:
+        h1 = get_src(START)
+        if not h1: return results
+        s = BeautifulSoup(h1, 'html.parser')
+        lnk = s.find('link', rel='amphtml')
+        if not lnk: return results
+        amp = lnk.get('href')
+        h2 = get_src(amp)
+        if not h2: return results
+        m = re.search(r'\[src\]="appState\.currentIframe".*?src="(https?://[^"]+)"', h2, re.DOTALL)
+        if not m: return results
+        ifr = m.group(1)
+        h3 = get_src(ifr, ref=amp)
+        if not h3: return results
+        bm = re.search(r'baseUrls\s*=\s*\[(.*?)\]', h3, re.DOTALL)
+        if not bm: return results
+        cl = bm.group(1).replace('"', '').replace("'", "").replace("\n", "").replace("\r", "")
+        srvs = [x.strip() for x in cl.split(',') if x.strip().startswith("http")]
+        srvs = list(set(srvs)) 
+
+        active_servers = []
+        tid = "androstreamlivebs1" 
+        for sv in srvs:
+            sv = sv.rstrip('/')
+            turl = f"{sv}/{tid}.m3u8" if "checklist" in sv else f"{sv}/checklist/{tid}.m3u8"
+            turl = turl.replace("checklist//", "checklist/")
+            try:
+                tr = requests.get(PROXY + turl, headers=HEADERS, verify=False, timeout=5)
+                if tr.status_code == 200: active_servers.append(sv)
+            except: pass
+
+        for srv in active_servers:
+            for cid, cname in channels:
+                furl = f"{srv}/{cid}.m3u8" if "checklist" in srv else f"{srv}/checklist/{cid}.m3u8"
+                furl = furl.replace("checklist//", "checklist/")
+                results.append({"name": f"ANDRO - {cname}", "url": furl, "group": "ANDRO SPOR (YENI)", "logo": "https://hizliresim.com/gm50rk9", "ref": ifr})
+        print(f"[OK] Andro-Panel: {len(active_servers)} sunucu aktif bulundu.")
     except Exception as e:
-        print(f"Hata: {url} adresine erisilemiyor. Mesaj: {e}")
-        return None
+        print(f"[!] Andro-Panel hatasi: {e}")
+    return results
 
-def get_video_link(url):
-    """
-    Filmin sayfasina girer ve iframe linkini alir.
-    Senin ornek kodundaki fonksiyonun aynisi.
-    """
-    soup = get_soup(url)
-    if not soup:
-        return None
-    iframe = soup.find('iframe', id='iframe')
-    if iframe and 'src' in iframe.attrs:
-        return iframe['src']
-    # Iframe yoksa sayfa linkini dondur, hic yoktan iyidir
-    return url
-
-def get_film_info(film_element, base_domain):
-    """
-    Senin kodundaki ayiklama mantiginin AYNISI.
-    Ozel class aramaz, elementin icine bakar.
-    """
-    try:
-        title_element = film_element.find('span', class_='title')
-        # Eger baslik yoksa bu bir film degildir, bos don.
-        if not title_element: return None
-        
-        title = html.unescape(title_element.text.strip())
-        
-        image_element = film_element.find('img')
-        image = ""
-        if image_element:
-            # Bazen data-src, bazen src kullanilir
-            image = image_element.get('data-src') or image_element.get('src') or ""
-            if image.startswith('//'): image = 'https:' + image
-        
-        url_element = film_element.find('a')
-        url = ""
-        if url_element:
-            href = url_element['href']
-            url = base_domain + href if not href.startswith('http') else href
-        
-        year_element = film_element.find('span', class_='year')
-        year = html.unescape(year_element.text.strip()) if year_element else ""
-        
-        duration_element = film_element.find('span', class_='duration')
-        duration = html.unescape(duration_element.text.strip()) if duration_element else ""
-        
-        imdb_element = film_element.find('span', class_='imdb')
-        imdb = html.unescape(imdb_element.text.strip()) if imdb_element else ""
-        
-        genres_element = film_element.find('span', class_='genres_x')
-        genres = []
-        if genres_element:
-            text = html.unescape(genres_element.text.strip())
-            genres = text.split(', ') if text else []
-        
-        summary_element = film_element.find('span', class_='summary')
-        summary = html.unescape(summary_element.text.strip()) if summary_element else ""
-        
-        # ID al (Load More icin gerekli)
-        movie_id = None
-        if url_element and 'data-id' in url_element.attrs:
-            movie_id = url_element['data-id']
-
-        return {
-            'id': movie_id,
-            'title': title,
-            'image': image,
-            'videoUrl': "", # Sonra doldurulacak
-            'url': url,
-            'year': year,
-            'duration': duration,
-            'imdb': imdb,
-            'genres': genres,
-            'summary': summary
-        }
-    except Exception:
-        return None
-
-def load_more_movies(api_url, last_movie_id):
-    """API uzerinden daha fazla film yukler (Senin kodun aynisi)."""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-Requested-With': 'XMLHttpRequest'
-    }
-    data = {
-        'movie': last_movie_id,
-        'year': '',
-        'tur': '',
-        'siralama': ''
-    }
-    try:
-        response = requests.post(api_url, headers=headers, data=data, timeout=15)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"API Hatasi: {e}")
-        return None
-
-def get_films():
-    films = []
-    base_domain = get_base_domain(BASE_URL)
-    api_url = f"{base_domain}/api/load-movies"
+# --- ANA ÇALIŞTIRICI ---
+def main():
+    all_streams = []
+    print("--- SPOR LİSTESİ OLUŞTURUCU BAŞLATILDI ---")
     
-    print(f"Baslangic URL: {BASE_URL}")
-    print("Yontem: Kaba Kuvvet (Butun <li> elementleri taranacak)")
-
-    soup = get_soup(BASE_URL)
-    if not soup:
-        return films
-
-    processed_film_titles = set()
+    # Sırayla tüm kaynakları çalıştır
+    all_streams.extend(fetch_atom_spor())
+    all_streams.extend(fetch_vavoo())
+    all_streams.extend(fetch_netspor())
+    all_streams.extend(fetch_trgoals()) 
+    all_streams.extend(fetch_alam_tv()) # Yeni eklenen AlamTV
+    all_streams.extend(fetch_selcuk_sporcafe())
+    all_streams.extend(fetch_andro_nodes())
     
-    # Ilk Sayfa ve Sonsuz Dongu
-    # Donguyu kirmamak icin `while True` kullanacagiz ama soup degisecek
-    current_soup = soup
-    page_count = 1
-    
-    while True:
-        # Sayfadaki TUM li elementlerini bul (Generic Arama)
-        film_elements = current_soup.find_all('li')
-        
-        if not film_elements:
-            print("Film elementi bulunamadi. Dongu bitiyor.")
-            break
-            
-        new_films_on_page = 0
-        last_movie_id = None
-        
-        for element in film_elements:
-            film_info = get_film_info(element, base_domain)
-            
-            if film_info and film_info['title'] not in processed_film_titles:
-                # Video linkini al (Senin istegin uzerine her filmde iceri girip bakacak)
-                # Bu islem yavastir ama istedigin budur.
-                print(f">> Isleniyor: {film_info['title']}")
-                video_link = get_video_link(film_info['url'])
-                film_info['videoUrl'] = video_link
-                
-                films.append(film_info)
-                processed_film_titles.add(film_info['title'])
-                new_films_on_page += 1
-                
-                # Son filmin ID'sini kaydet (Sonraki sayfa icin)
-                if film_info['id']:
-                    last_movie_id = film_info['id']
-                
-                time.sleep(0.1) # Sunucuyu patlatmamak icin minik bekleme
+    if not all_streams: 
+        print("Hicbir kanal bulunamadi!")
+        return
 
-        print(f"Sayfa {page_count} Bitti. Toplam Film: {len(films)}")
+    content = "#EXTM3U\n"
+    content += f"# Son Guncelleme: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n"
+    for s in all_streams:
+        logo_attr = f' tvg-logo="{s["logo"]}"' if s.get("logo") else ""
+        content += f'#EXTINF:-1 group-title="{s["group"]}"{logo_attr},{s["name"]}\n'
+        if s.get("ref"): 
+            content += f'#EXTVLCOPT:http-referrer={s["ref"]}\n'
+        content += f'#EXTVLCOPT:http-user-agent={HEADERS["User-Agent"]}\n'
+        content += f'#EXTHTTP:{"User-Agent"}:{HEADERS["User-Agent"]}\n'
+        content += f'{s["url"]}\n'
 
-        # Eger bu sayfada hic yeni film bulamadiysak veya son ID yoksa bitir
-        if new_films_on_page == 0 or not last_movie_id:
-            print("Yeni film gelmedi veya ID yok. Bitti.")
-            break
-
-        # Sonraki sayfayi API'den iste
-        print(f"Daha fazla film yukleniyor (Son ID: {last_movie_id})...")
-        more_data = load_more_movies(api_url, last_movie_id)
-        
-        if more_data and more_data.get('html'):
-            current_soup = BeautifulSoup(more_data['html'], 'html.parser')
-            page_count += 1
-        else:
-            print("Daha fazla veri gelmedi.")
-            break
-            
-        # GUVEVNLI MOD: GitHub Actions suresi dolmasin diye 1000 filmde duralim mi?
-        # Istersen bu if blogunu silebilirsin.
-        if len(films) >= 3000:
-            print("Guvenlik limiti: 3000 film. Durduruluyor.")
-            break
-
-    return films
-
-def get_all_genres(films):
-    # Sabit liste + Dinamik liste
-    all_genres = set(FIXED_GENRES)
-    for film in films:
-        for genre in film.get('genres', []):
-            if genre and genre != "Tür Belirtilmemiş":
-                all_genres.add(genre)
-    return sorted(list(all_genres))
-
-def create_html(films):
-    all_genres = get_all_genres(films)
-    films_json = json.dumps(films, ensure_ascii=False)
-    genres_json = json.dumps(all_genres, ensure_ascii=False)
-    
-    html_template = f"""<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dizipal Arşiv</title>
-    <style>
-        body {{ font-family: -apple-system, sans-serif; margin: 0; padding: 0; background-color: #344966; color: #fff; }}
-        .header {{ position: fixed; top: 0; left: 0; right: 0; background-color: #2c3e50; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }}
-        h1 {{ margin: 0; font-size: 1.2em; }}
-        .controls {{ display: flex; gap: 10px; }}
-        #genreSelect, #searchInput {{ padding: 10px; border-radius: 5px; border: none; background: #496785; color: white; }}
-        
-        .film-container {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 70px; padding: 20px; }}
-        .film-card {{ border-radius: 8px; background: #496785; overflow: hidden; cursor: pointer; transition: transform 0.2s; position: relative; }}
-        .film-card:hover {{ transform: translateY(-5px); z-index: 10; }}
-        .film-card img {{ width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }}
-        
-        .film-overlay {{ position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; }}
-        .film-title {{ text-align: center; font-size: 0.85em; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-        
-        /* Modal */
-        .modal {{ display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }}
-        .modal-content {{ background: #2c3e50; margin: 5% auto; padding: 25px; width: 90%; max-width: 500px; border-radius: 12px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
-        .close {{ position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }}
-        
-        .btn-watch {{ display: block; width: 100%; background-color: #e74c3c; color: white; text-align: center; padding: 15px; border-radius: 8px; text-decoration: none; margin-top: 20px; font-weight: bold; font-size: 1.1em; transition: background 0.3s; }}
-        .btn-watch:hover {{ background-color: #c0392b; }}
-        
-        .meta-tag {{ display: inline-block; background: #344966; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; margin: 5px 5px 5px 0; border: 1px solid #4a6fa5; }}
-        .genre-tag {{ background: #e67e22; border: 1px solid #d35400; }}
-        
-        #loadMore {{ display: block; margin: 30px auto; padding: 15px 40px; background: #f39c12; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 1em; font-weight: bold; }}
-        #loadMore:hover {{ background: #e67e22; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Arşiv ({len(films)})</h1>
-        <div class="controls">
-            <select id="genreSelect" onchange="filterFilms()"><option value="">Tüm Türler</option></select>
-            <input type="text" id="searchInput" placeholder="Film Ara..." oninput="filterFilms()">
-        </div>
-    </div>
-    
-    <div class="film-container" id="filmContainer"></div>
-    <button id="loadMore" onclick="loadMoreFilms()">Daha Fazla Göster</button>
-
-    <!-- Detay Penceresi -->
-    <div id="filmModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="mTitle" style="margin-top:0;"></h2>
-            <div id="mMeta" style="margin-bottom:15px;"></div>
-            <p id="mSummary" style="color: #bdc3c7; line-height: 1.6; font-size: 0.95em; max-height: 200px; overflow-y: auto;"></p>
-            <a id="mWatch" class="btn-watch" target="_blank">🎬 HEMEN İZLE</a>
-        </div>
-    </div>
-
-    <script>
-        const films = {films_json};
-        const allGenres = {genres_json};
-        let currentPage = 1;
-        const perPage = 30;
-        let list = films;
-
-        // Türleri Dinamik Doldur
-        const sel = document.getElementById('genreSelect');
-        allGenres.forEach(g => {{
-            const opt = document.createElement('option');
-            opt.value = g; opt.innerText = g; sel.appendChild(opt);
-        }});
-
-        function createCard(f) {{
-            const d = document.createElement('div');
-            d.className = 'film-card';
-            d.innerHTML = `
-                <img src="${{f.image}}" loading="lazy" onerror="this.src='https://via.placeholder.com/200x300?text=Resim+Yok'">
-                <div class="film-overlay">
-                    <div class="film-title">${{f.title}}</div>
-                </div>`;
-            d.onclick = () => openModal(f);
-            return d;
-        }}
-
-        function render() {{
-            const c = document.getElementById('filmContainer');
-            if(currentPage===1) c.innerHTML='';
-            
-            const start = (currentPage-1)*perPage;
-            const end = start+perPage;
-            const batch = list.slice(start, end);
-            
-            batch.forEach(f => c.appendChild(createCard(f)));
-            document.getElementById('loadMore').style.display = end>=list.length ? 'none' : 'block';
-        }}
-
-        function loadMoreFilms() {{ currentPage++; render(); }}
-
-        function filterFilms() {{
-            const s = document.getElementById('searchInput').value.toLowerCase();
-            const g = document.getElementById('genreSelect').value;
-            
-            list = films.filter(f => {{
-                // Film genres bir liste oldugu icin includes ile bakariz
-                const hasGenre = g === "" || (f.genres && f.genres.includes(g));
-                const matchesSearch = f.title.toLowerCase().includes(s);
-                return hasGenre && matchesSearch;
-            }});
-            
-            currentPage=1; render();
-        }}
-
-        function openModal(f) {{
-            document.getElementById('mTitle').innerText = f.title;
-            document.getElementById('mSummary').innerText = f.summary || "Özet bilgisi bulunamadı.";
-            
-            let h = '';
-            if(f.year) h += `<span class="meta-tag">${{f.year}}</span>`;
-            if(f.imdb) h += `<span class="meta-tag">IMDB: ${{f.imdb}}</span>`;
-            if(f.duration) h += `<span class="meta-tag">${{f.duration}}</span>`;
-            
-            if(f.genres && f.genres.length > 0) {{
-                f.genres.forEach(g => h+=`<span class="meta-tag genre-tag">${{g}}</span>`);
-            }}
-            
-            document.getElementById('mMeta').innerHTML = h;
-            document.getElementById('mWatch').href = f.videoUrl || f.url;
-            document.getElementById('filmModal').style.display = 'block';
-        }}
-
-        function closeModal() {{ document.getElementById('filmModal').style.display='none'; }}
-        window.onclick = (e) => {{ if(e.target == document.getElementById('filmModal')) closeModal(); }}
-        
-        render();
-    </script>
-</body>
-</html>"""
-    
-    with open(HTML_FILE, 'w', encoding='utf-8') as f:
-        f.write(html_template)
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(films, f, ensure_ascii=False)
+    with open(OUTPUT_FILE, "w", encoding="utf-8-sig") as f:
+        f.write(content)
+    print(f"\n[OK] Tum siteler ve kanallar eksiksiz olarak birlestirildi -> {OUTPUT_FILE}")
 
 if __name__ == "__main__":
-    data = get_films() # get_all_films degil, cunku adini degistirdik
-    if data:
-        create_html(data)
+    main()
