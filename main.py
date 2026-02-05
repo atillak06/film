@@ -1,4 +1,4 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import json
 import time
@@ -9,15 +9,19 @@ BASE_URL = "https://dizipal.uk/filmler"
 OUT_JSON = "films.json"
 OUT_HTML = "index.html"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
+# Cloudflare uyumlu scraper
+scraper = cloudscraper.create_scraper(
+    browser={
+        "browser": "chrome",
+        "platform": "windows",
+        "desktop": True
+    }
+)
 
 # ------------------------------------------------
-
 def get_soup(url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
+        r = scraper.get(url, timeout=20)
         r.raise_for_status()
         return BeautifulSoup(r.text, "html.parser")
     except Exception as e:
@@ -25,7 +29,7 @@ def get_soup(url):
         return None
 
 # ------------------------------------------------
-# Film detay sayfasından iframe içindeki linki çek
+# Film detay sayfasından iframe linki
 def get_video_link(detail_url):
     soup = get_soup(detail_url)
     if not soup:
@@ -42,12 +46,11 @@ def get_video_link(detail_url):
     return src
 
 # ------------------------------------------------
-# Liste sayfasındaki film div'inden bilgileri al
+# Liste sayfasındaki film kartı
 def get_film_info(item, base_domain):
     try:
         a = item.find("a")
         img = item.find("img")
-
         if not a or not img:
             return None
 
@@ -55,24 +58,16 @@ def get_film_info(item, base_domain):
         if not title:
             return None
 
-        href = a.get("href")
-        url = urljoin(base_domain, href)
-
+        url = urljoin(base_domain, a.get("href"))
         image = img.get("data-src") or img.get("src") or ""
         if image.startswith("//"):
             image = "https:" + image
 
         return {
-            "id": None,
             "title": title,
             "image": image,
             "url": url,
-            "videoUrl": "",
-            "year": "",
-            "duration": "",
-            "imdb": "",
-            "genres": [],
-            "summary": ""
+            "videoUrl": ""
         }
     except:
         return None
@@ -99,26 +94,24 @@ def get_films():
 
         for item in items:
             film = get_film_info(item, BASE_URL)
-            if not film:
-                continue
-
-            if film["title"] in seen:
+            if not film or film["title"] in seen:
                 continue
 
             print("🎬 Film:", film["title"])
 
+            # iframe isteği pahalı → yavaşlat
             film["videoUrl"] = get_video_link(film["url"])
 
             films.append(film)
             seen.add(film["title"])
             new_count += 1
 
-            time.sleep(0.15)
+            time.sleep(1.2)  # 🔴 Actions için şart
 
         if new_count == 0:
             break
-			
-        if len(films) >= 60:
+
+        if len(films) >= 60:  # güvenlik limiti
             print("Güvenlik limiti.")
             break
 
@@ -127,7 +120,6 @@ def get_films():
     return films
 
 # ------------------------------------------------
-# HTML oluştur
 def generate_html(films):
     cards = ""
     for f in films:
@@ -186,7 +178,6 @@ body {{
 """
 
 # ------------------------------------------------
-# ÇALIŞTIR
 films = get_films()
 
 with open(OUT_JSON, "w", encoding="utf-8") as f:
