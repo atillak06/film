@@ -1,25 +1,25 @@
-import cloudscraper
-from bs4 import BeautifulSoup
 import json
 import time
 import html
 from urllib.parse import urljoin
 
+import cloudscraper
+from bs4 import BeautifulSoup
+
 BASE_URL = "https://dizipal.uk/filmler"
 OUT_JSON = "films.json"
 OUT_HTML = "index.html"
 
-# Cloudflare uyumlu scraper
 scraper = cloudscraper.create_scraper(
     browser={
         "browser": "chrome",
         "platform": "windows",
-        "desktop": True
+        "mobile": False,
     }
 )
 
-# ------------------------------------------------
-def get_soup(url):
+
+def get_soup(url: str) -> BeautifulSoup | None:
     try:
         r = scraper.get(url, timeout=20)
         r.raise_for_status()
@@ -28,9 +28,8 @@ def get_soup(url):
         print("HATA:", url, e)
         return None
 
-# ------------------------------------------------
-# Film detay sayfasından iframe linki
-def get_video_link(detail_url):
+
+def get_video_link(detail_url: str) -> str:
     soup = get_soup(detail_url)
     if not soup:
         return ""
@@ -42,45 +41,48 @@ def get_video_link(detail_url):
     src = iframe.get("src", "")
     if src.startswith("//"):
         src = "https:" + src
-
     return src
 
-# ------------------------------------------------
-# Liste sayfasındaki film kartı
-def get_film_info(item, base_domain):
-    try:
-        a = item.find("a")
-        img = item.find("img")
-        if not a or not img:
-            return None
 
-        title = html.unescape(a.get("title", "").strip())
-        if not title:
-            return None
-
-        url = urljoin(base_domain, a.get("href"))
-        image = img.get("data-src") or img.get("src") or ""
-        if image.startswith("//"):
-            image = "https:" + image
-
-        return {
-            "title": title,
-            "image": image,
-            "url": url,
-            "videoUrl": ""
-        }
-    except:
+def get_film_info(item, base_domain: str) -> dict | None:
+    a = item.find("a")
+    img = item.find("img")
+    if not a or not img:
         return None
 
-# ------------------------------------------------
-def get_films():
-    films = []
-    seen = set()
+    title = html.unescape(a.get("title", "").strip())
+    if not title:
+        return None
+
+    href = a.get("href", "")
+    url = urljoin(base_domain, href)
+
+    image = img.get("data-src") or img.get("src") or ""
+    if image.startswith("//"):
+        image = "https:" + image
+
+    return {
+        "id": None,
+        "title": title,
+        "image": image,
+        "url": url,
+        "videoUrl": "",
+        "year": "",
+        "duration": "",
+        "imdb": "",
+        "genres": [],
+        "summary": "",
+    }
+
+
+def get_films(limit: int = 60) -> list[dict]:
+    films: list[dict] = []
+    seen: set[str] = set()
     page = 1
 
     while True:
         page_url = BASE_URL if page == 1 else f"{BASE_URL}/page/{page}/"
-        print(f"📄 Sayfa: {page_url}")
+        print("Sayfa:", page_url)
 
         soup = get_soup(page_url)
         if not soup:
@@ -90,37 +92,35 @@ def get_films():
         if not items:
             break
 
-        new_count = 0
-
+        added = 0
         for item in items:
             film = get_film_info(item, BASE_URL)
-            if not film or film["title"] in seen:
+            if not film:
+                continue
+            if film["title"] in seen:
                 continue
 
-            print("🎬 Film:", film["title"])
-
-            # iframe isteği pahalı → yavaşlat
+            print("Film:", film["title"])
             film["videoUrl"] = get_video_link(film["url"])
 
             films.append(film)
             seen.add(film["title"])
-            new_count += 1
+            added += 1
 
-            time.sleep(1.2)  # 🔴 Actions için şart
+            time.sleep(0.2)
 
-        if new_count == 0:
-            break
+            if len(films) >= limit:
+                return films
 
-        if len(films) >= 60:  # güvenlik limiti
-            print("Güvenlik limiti.")
+        if added == 0:
             break
 
         page += 1
 
     return films
 
-# ------------------------------------------------
-def generate_html(films):
+
+def generate_html(films: list[dict]) -> str:
     cards = ""
     for f in films:
         cards += f"""
@@ -131,60 +131,33 @@ def generate_html(films):
         </div>
         """
 
-    return f"""
-<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <title>Film Arşivi</title>
 <style>
-body {{
-    background:#0f0f0f;
-    color:#fff;
-    font-family:Arial;
-}}
-.grid {{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-    gap:15px;
-}}
-.card {{
-    background:#1a1a1a;
-    padding:10px;
-    border-radius:8px;
-    text-align:center;
-}}
-.card img {{
-    width:100%;
-    border-radius:6px;
-}}
-.card a {{
-    display:block;
-    margin-top:8px;
-    color:#0f0;
-    text-decoration:none;
-}}
+body {{ background:#0f0f0f; color:#fff; font-family:Arial; }}
+.grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:15px; }}
+.card {{ background:#1a1a1a; padding:10px; border-radius:8px; text-align:center; }}
+.card img {{ width:100%; border-radius:6px; }}
+.card a {{ display:block; margin-top:8px; color:#0f0; text-decoration:none; }}
 </style>
 </head>
 <body>
-
 <h1>🎥 Film Listesi ({len(films)})</h1>
-<div class="grid">
-{cards}
-</div>
-
+<div class="grid">{cards}</div>
 </body>
-</html>
-"""
+</html>"""
 
-# ------------------------------------------------
-films = get_films()
 
-with open(OUT_JSON, "w", encoding="utf-8") as f:
-    json.dump(films, f, ensure_ascii=False, indent=2)
+if __name__ == "__main__":
+    films = get_films()
 
-with open(OUT_HTML, "w", encoding="utf-8") as f:
-    f.write(generate_html(films))
+    with open(OUT_JSON, "w", encoding="utf-8") as f:
+        json.dump(films, f, ensure_ascii=False, indent=2)
 
-print(f"✅ {len(films)} film kaydedildi")
-print("📄 films.json + index.html oluşturuldu")
+    with open(OUT_HTML, "w", encoding="utf-8") as f:
+        f.write(generate_html(films))
+
+    print(f"OK: {len(films)} film")
