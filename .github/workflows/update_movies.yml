@@ -26,8 +26,9 @@ jobs:
 
     - name: Kutuphaneleri Yukle
       run: |
+        pip install cloudscraper beautifulsoup4
         pip install -r requirements.txt
-
+      
     - name: Botu Calistir
       env:
         # Site adresi değişirse buradan veya Secrets kısmından güncelleyebilirsin
