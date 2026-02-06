@@ -1,4 +1,4 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import json
 import time
@@ -9,17 +9,31 @@ BASE_URL = "https://dizipal.uk/filmler"
 OUT_JSON = "films.json"
 OUT_HTML = "index.html"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
+# Cloudflare-safe scraper
+scraper = cloudscraper.create_scraper(
+    browser={
+        "browser": "chrome",
+        "platform": "windows",
+        "desktop": True,
+    }
+)
 
 # ------------------------------------------------
-
 def get_soup(url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
-        r.raise_for_status()
+        r = scraper.get(url, timeout=20)
+        print("STATUS:", r.status_code, url)
+
+        if r.status_code != 200:
+            return None
+
+        # Cloudflare kontrolü
+        if "Just a moment" in r.text or "Cloudflare" in r.text:
+            print("⚠️ Cloudflare challenge yakalandı:", url)
+            return None
+
         return BeautifulSoup(r.text, "html.parser")
+
     except Exception as e:
         print("HATA:", url, e)
         return None
@@ -74,7 +88,8 @@ def get_film_info(item, base_domain):
             "genres": [],
             "summary": ""
         }
-    except:
+    except Exception as e:
+        print("Film parse hatası:", e)
         return None
 
 # ------------------------------------------------
@@ -85,7 +100,7 @@ def get_films():
 
     while True:
         page_url = BASE_URL if page == 1 else f"{BASE_URL}/page/{page}/"
-        print(f"📄 Sayfa: {page_url}")
+        print(f"\n📄 Sayfa: {page_url}")
 
         soup = get_soup(page_url)
         if not soup:
@@ -113,13 +128,13 @@ def get_films():
             seen.add(film["title"])
             new_count += 1
 
-            time.sleep(0.15)
+            time.sleep(0.3)  # Cloudflare için biraz daha yavaş
 
         if new_count == 0:
             break
-			
+
         if len(films) >= 60:
-            print("Güvenlik limiti.")
+            print("🛑 Güvenlik limiti.")
             break
 
         page += 1
@@ -195,5 +210,5 @@ with open(OUT_JSON, "w", encoding="utf-8") as f:
 with open(OUT_HTML, "w", encoding="utf-8") as f:
     f.write(generate_html(films))
 
-print(f"✅ {len(films)} film kaydedildi")
+print(f"\n✅ {len(films)} film kaydedildi")
 print("📄 films.json + index.html oluşturuldu")
