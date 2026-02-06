@@ -1,35 +1,53 @@
-name: Film Scraper
+name: Film Botu Güncelleyici
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # 6 saatte bir
-  workflow_dispatch:
+    # Her gün saat 00:00 ve 12:00'da (UTC) çalışır
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # Manuel çalıştırma butonu
+
+permissions:
+  contents: write
 
 jobs:
-  scrape:
+  update-movies:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repo Checkout
-        uses: actions/checkout@v4
+    - name: Depoyu Cek
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # Tüm geçmişi çek (Merge hatalarını önler)
 
-      - name: Python Kur
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Python Kurulumu
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
-      - name: Bağımlılıkları Yükle
-        run: |
-          pip install --upgrade pip
-          pip install cloudscraper beautifulsoup4
+    - name: Kutuphaneleri Yukle
+      run: |
+        pip install -r requirements.txt
 
-      - name: Scraper Çalıştır
-        run: python main.py
+    - name: Botu Calistir
+      env:
+        # Site adresi değişirse buradan veya Secrets kısmından güncelleyebilirsin
+        SITE_URL: ${{ secrets.SITE_URL || 'https://dizipal.uk/filmler' }}
+      run: python main.py
 
-      - name: Dosyaları Commit Et
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add films.json index.html
-          git commit -m "🎬 Film listesi otomatik güncellendi" || echo "Değişiklik yok"
-          git push
+    - name: Degisiklikleri Kaydet ve Yukle
+      run: |
+        git config --global user.name "Film Botu"
+        git config --global user.email "bot@github.com"
+        
+        # 1. Dosyaları sahneye al
+        git add .
+        
+        # 2. Değişiklik varsa commit yap, yoksa devam et
+        git commit -m "Otomatik guncelleme" || echo "Degisiklik yok"
+        
+        # 3. KRİTİK NOKTA: Sitede sen bir şey değiştirdiysen önce onu indir ve birleştir
+        # Bu komut 'failed to push' hatasını %100 çözer
+        git pull --rebase origin main
+        
+        # 4. Şimdi güvenle yükle
+        git push origin main
