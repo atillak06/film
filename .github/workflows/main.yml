@@ -1,1 +1,35 @@
+name: Film Scraper
 
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # 6 saatte bir
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo Checkout
+        uses: actions/checkout@v4
+
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bağımlılıkları Yükle
+        run: |
+          pip install --upgrade pip
+          pip install cloudscraper beautifulsoup4
+
+      - name: Scraper Çalıştır
+        run: python main.py
+
+      - name: Dosyaları Commit Et
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add films.json index.html
+          git commit -m "🎬 Film listesi otomatik güncellendi" || echo "Değişiklik yok"
+          git push
