@@ -1,9 +1,61 @@
-import cloudscraper
+import requests
 from bs4 import BeautifulSoup
-import json
 import time
+import json
 import html
-from urllib.parse import urljoin
+from urllib.parse import urlparse
+import os
+from datetime import datetime
+import random
+
+class CloudflareScraper:
+    def __init__(self):
+        self.session = requests.Session()
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0',
+        }
+        
+    def get_soup(self, url, retries=3):
+        """Cloudflare korumasını aşarak sayfa içeriğini çeker"""
+        for attempt in range(retries):
+            try:
+                # Random delay ekle
+                if attempt > 0:
+                    time.sleep(random.uniform(2, 5))
+                
+                response = self.session.get(
+                    url, 
+                    headers=self.headers,
+                    timeout=30,
+                    allow_redirects=True
+                )
+                
+                # Cloudflare challenge kontrolü
+                if 'cf-browser-verification' in response.text or response.status_code == 403:
+                    print(f"⚠️ Cloudflare koruması tespit edildi, deneme {attempt + 1}/{retries}")
+                    time.sleep(5)
+                    continue
+                
+                response.raise_for_status()
+                return BeautifulSoup(response.content, 'html.parser')
+                
+            except requests.RequestException as e:
+                print(f"❌ Hata (Deneme {attempt + 1}/{retries}): {e}")
+                if attempt == retries - 1:
+                    return None
+                time.sleep(3)
+        
+        return None
 
 BASE_URL = "https://dizipal.uk/filmler"
 OUT_JSON = "films.json"
