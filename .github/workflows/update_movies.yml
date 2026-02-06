@@ -1,21 +1,29 @@
-name: Run Film Scraper
+name: Film Scraper
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # Elle çalıştırma
+  schedule:
+    - cron: "0 3 * * *"   # Her gün 03:00 (isteğe bağlı)
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v3
+    permissions:
+      contents: write   # Commit atabilmek için ZORUNLU
 
-      - uses: actions/setup-python@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
       - name: Run script
@@ -25,6 +33,11 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add .
-          git commit -m "Auto-generated files" || echo "Nothing to commit"
-          git push
+
+          if [[ `git status --porcelain` ]]; then
+            git add .
+            git commit -m "Update generated film data"
+            git push
+          else
+            echo "No changes to commit"
+          fi
