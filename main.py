@@ -9,37 +9,32 @@ BASE_URL = "https://dizipal.uk/filmler"
 OUT_JSON = "films.json"
 OUT_HTML = "index.html"
 
-# Cloudflare-safe scraper
+# Cloudflare uyumlu scraper
 scraper = cloudscraper.create_scraper(
     browser={
         "browser": "chrome",
         "platform": "windows",
-        "desktop": True,
+        "desktop": True
     }
 )
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+}
 
 # ------------------------------------------------
 def get_soup(url):
     try:
-        r = scraper.get(url, timeout=20)
-        print("STATUS:", r.status_code, url)
-
-        if r.status_code != 200:
-            return None
-
-        # Cloudflare kontrolü
-        if "Just a moment" in r.text or "Cloudflare" in r.text:
-            print("⚠️ Cloudflare challenge yakalandı:", url)
-            return None
-
+        r = scraper.get(url, headers=HEADERS, timeout=30)
+        r.raise_for_status()
         return BeautifulSoup(r.text, "html.parser")
-
     except Exception as e:
         print("HATA:", url, e)
         return None
 
 # ------------------------------------------------
-# Film detay sayfasından iframe içindeki linki çek
+# Film detay sayfasından iframe linki al
 def get_video_link(detail_url):
     soup = get_soup(detail_url)
     if not soup:
@@ -56,7 +51,6 @@ def get_video_link(detail_url):
     return src
 
 # ------------------------------------------------
-# Liste sayfasındaki film div'inden bilgileri al
 def get_film_info(item, base_domain):
     try:
         a = item.find("a")
@@ -88,8 +82,7 @@ def get_film_info(item, base_domain):
             "genres": [],
             "summary": ""
         }
-    except Exception as e:
-        print("Film parse hatası:", e)
+    except:
         return None
 
 # ------------------------------------------------
@@ -100,7 +93,7 @@ def get_films():
 
     while True:
         page_url = BASE_URL if page == 1 else f"{BASE_URL}/page/{page}/"
-        print(f"\n📄 Sayfa: {page_url}")
+        print(f"📄 Sayfa: {page_url}")
 
         soup = get_soup(page_url)
         if not soup:
@@ -128,13 +121,13 @@ def get_films():
             seen.add(film["title"])
             new_count += 1
 
-            time.sleep(0.3)  # Cloudflare için biraz daha yavaş
+            time.sleep(0.2)  # Cloudflare için biraz daha güvenli
 
         if new_count == 0:
             break
 
         if len(films) >= 60:
-            print("🛑 Güvenlik limiti.")
+            print("🛑 60 film limitine ulaşıldı")
             break
 
         page += 1
@@ -142,7 +135,6 @@ def get_films():
     return films
 
 # ------------------------------------------------
-# HTML oluştur
 def generate_html(films):
     cards = ""
     for f in films:
@@ -168,7 +160,7 @@ body {{
 }}
 .grid {{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    grid-template-columns:repeat(auto-fill,minmax(175px,1fr));
     gap:15px;
 }}
 .card {{
@@ -201,7 +193,6 @@ body {{
 """
 
 # ------------------------------------------------
-# ÇALIŞTIR
 films = get_films()
 
 with open(OUT_JSON, "w", encoding="utf-8") as f:
@@ -210,5 +201,5 @@ with open(OUT_JSON, "w", encoding="utf-8") as f:
 with open(OUT_HTML, "w", encoding="utf-8") as f:
     f.write(generate_html(films))
 
-print(f"\n✅ {len(films)} film kaydedildi")
+print(f"✅ {len(films)} film kaydedildi")
 print("📄 films.json + index.html oluşturuldu")
