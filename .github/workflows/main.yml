@@ -1,53 +1,40 @@
-name: Film Botu Güncelleyici
+name: Fanatik Play Film Scraper
 
 on:
   schedule:
-    # Her gün saat 00:00 ve 12:00'da (UTC) çalışır
-    - cron: '0 0,12 * * *'
-  workflow_dispatch: # Manuel çalıştırma butonu
+    # Her gün saat 04:00'te (UTC) çalışır (Türkiye saatiyle 07:00)
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Manuel tetikleme için
 
 permissions:
   contents: write
 
 jobs:
-  update-movies:
+  scrape-and-update:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Depoyu Cek
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0 # Tüm geçmişi çek (Merge hatalarını önler)
+      - name: Depoyu Çek (Checkout)
+        uses: actions/checkout@v3
 
-    - name: Python Kurulumu
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Python Kurulumu
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Kutuphaneleri Yukle
-      run: |
-        pip install -r requirements.txt
+      - name: Gerekli Kütüphaneleri Yükle
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
 
-    - name: Botu Calistir
-      env:
-        # Site adresi değişirse buradan veya Secrets kısmından güncelleyebilirsin
-        SITE_URL: ${{ secrets.SITE_URL || 'https://dizipal.uk/filmler' }}
-      run: python main.py
+      - name: Scraper'ı Çalıştır
+        run: python main.py
 
-    - name: Degisiklikleri Kaydet ve Yukle
-      run: |
-        git config --global user.name "Film Botu"
-        git config --global user.email "bot@github.com"
-        
-        # 1. Dosyaları sahneye al
-        git add .
-        
-        # 2. Değişiklik varsa commit yap, yoksa devam et
-        git commit -m "Otomatik guncelleme" || echo "Degisiklik yok"
-        
-        # 3. KRİTİK NOKTA: Sitede sen bir şey değiştirdiysen önce onu indir ve birleştir
-        # Bu komut 'failed to push' hatasını %100 çözer
-        git pull --rebase origin main
-        
-        # 4. Şimdi güvenle yükle
-        git push origin main
+      - name: Değişiklikleri Commit ve Push Yap
+        run: |
+          git config --global user.name "Fanatik Bot"
+          git config --global user.email "bot@fanatikplay.com"
+          git add fanatik_movies.json fanatik_playlist.m3u
+          # Eğer değişiklik yoksa hata vermemesi için || true ekliyoruz
+          git commit -m "Otomatik güncelleme: Film listesi yenilendi" || true
+          git push
